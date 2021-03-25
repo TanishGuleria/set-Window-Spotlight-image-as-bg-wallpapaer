@@ -2,70 +2,200 @@
   "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
+    "_artifactsLocation": {
+      "type": "string",
+      "defaultValue": "East US",
+      "metadata": {
+        "description": "specify the value of location"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "string",
+      "defaultValue": "East US",
+      "metadata": {
+        "description": "specify the value of location"
+      }
+    },
     "location": {
-      "type": "string"
+      "type": "string",
+      "defaultValue": "East US",
+      "metadata": {
+        "description": "specify the value of location"
+      }
+    },
+    "locCode": {
+      "type": "string",
+      "defaultValue": "eus",
+      "metadata": {
+        "description": "specify the value of location code"
+      }
     },
     "tenantId": {
-      "type": "string"
-    },
-    "keyVaultName": {
-      "type": "string"
+      "type": "string",
+      "metadata": {
+        "description": "specify the value of tenantId code"
+      }
     },
     "objectId": {
-      "type": "string"
-    },
-    "keyPermissions": {
-      "type": "array"
-    },
-    "secretsPermissions": {
-      "type": "array"
-    },
-    "certificatesPermissions": {
-      "type": "array"
+      "type": "string",
+      "metadata": {
+        "description": "specify the value of objectid for access to keyvault"
+      }
     }
   },
+
+
+  "variables": {
+    //Template location
+    "templateFolderName": "Templates",
+
+    //keyVault Details
+    "keyVaultName": "[concat('kv-','oneconnect-',parameters('locCode'),'-01')]",
+    "keyVaultTemplateFileName": "KeyVault.json",
+
+    //IotHub Details
+    "iotHubName": "[concat('iot-','oneconnect-',parameters('locCode'),'-01')]",
+    "iotHubTemplateFileName": "IotHub.json",
+
+    //Eventhub Details
+    "eventHubNamespaceName": "[concat('evh-','oneconnect-',parameters('locCode'),'-01')]",
+    "eventHubTemplateFileName": "EventHub.json",
+
+    //Dps Details
+    "dpsName": "[concat('dps-','oneconnect-',parameters('locCode'),'-01')]",
+    "dpsTemplateFileName": "Dps.json",
+
+    //MySQL Server Details
+    "mySqlServerName": "[concat('mysql-','oneconnect-',parameters('locCode'),'-01')]",
+    "mySqlServerTemplateFileName": "MySqlServer.json",
+    "administratorLogin": "------------------",
+    "administratorLoginPassword": "---------"
+
+  },
+
   "resources": [
     {
-      "name": "[parameters('keyVaultName')]",
-      "type": "Microsoft.KeyVault/vaults",
-      "apiVersion": "2019-09-01",
-      "location": "[parameters('location')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-05-01",
+      "name": "keyVault",
       "properties": {
-        "tenantId": "[parameters('tenantId')]",
-        "sku": {
-          "family": "A",
-          "name": "Standard"
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('_artifactsLocation'), '/', variables('templateFolderName'), '/', variables('keyVaultTemplateFileName'), parameters('_artifactsLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
         },
-        "accessPolicies": [
-          {
-            "tenantId": "[parameters('tenantId')]",
-            "objectId": "[parameters('objectId')]",
-            "applicationId": "string",
-            "permissions": {
-              "keys": "[parameters('keyPermissions')]",
-              "secrets": "[parameters('secretsPermissions')]",
-              "certificates": "[parameters('certificatesPermissions')]"
-            }
+        "parameters": {
+          "keyVaultName": {
+            "value": "[variables('keyVaultName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tenantId": {
+            "value": "[parameters('tenantId')]"
+          },
+          "objectId": {
+            "value": "[parameters('objectId')]"
           }
-        ],
-        "enabledForDeployment": false,
-        "enabledForDiskEncryption": false,
-        "enabledForTemplateDeployment": false,
-        "enableSoftDelete": true,
-        "softDeleteRetentionInDays": 90,
-        "enableRbacAuthorization": false,
-        "enablePurgeProtection": false,
-        "networkAcls": {
-          "bypass": "AzureServices",
-          "defaultAction": "allow",
-          "ipRules": [],
-          "virtualNetworkRules": []
         }
       }
-    
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-05-01",
+      "name": "mySqlServer",
+      "dependsOn": [ "[resourceId('Microsoft.Resources/deployments','keyVault')]" ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('_artifactsLocation'), '/', variables('templateFolderName'), '/', variables('mySqlServerTemplateFileName'), parameters('_artifactsLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "mySqlServerName": {
+            "value": "[variables('mySqlServerName')]"
+          },
+          "administratorLogin": {
+            "value": "[variables('administratorLogin')]"
+          },
+          "administratorLoginPassword": {
+            "value": "[variables('administratorLoginPassword')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-05-01",
+      "name": "iotHub",
+      "dependsOn": [ "[resourceId('Microsoft.Resources/deployments','keyVault')]" ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('_artifactsLocation'), '/', variables('templateFolderName'), '/', variables('iotHubTemplateFileName'), parameters('_artifactsLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "iotHubName": {
+            "value": "[variables('iotHubName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-05-01",
+      "name": "eventHub",
+      "dependsOn": [ "[resourceId('Microsoft.Resources/deployments','keyVault')]" ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('_artifactsLocation'), '/', variables('templateFolderName'), '/', variables('eventHubTemplateFileName'), parameters('_artifactsLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "eventHubNamespaceName": {
+            "value": "[variables('eventHubNamespaceName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2019-05-01",
+      "name": "dps",
+      "dependsOn": [ "[resourceId('Microsoft.Resources/deployments','iotHub')]" ],
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[concat(parameters('_artifactsLocation'), '/', variables('templateFolderName'), '/', variables('dpsTemplateFileName'), parameters('_artifactsLocationSasToken'))]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "dpsName": {
+            "value": "[variables('dpsName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          }
+        }
+      }
     }
+
+
 
   ],
 
-  "outputs": {}
+  "outputs": {
+
+  }
 }
